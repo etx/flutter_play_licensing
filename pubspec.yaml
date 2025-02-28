@@ -5,7 +5,7 @@ author: yongjhih@gmail.com
 homepage: https://github.com/yongjhih/flutter_play_licensing
 
 environment:
-  sdk: ">=2.1.0 <3.0.0"
+  sdk: ">3.0.0"
 
 dependencies:
   flutter:
