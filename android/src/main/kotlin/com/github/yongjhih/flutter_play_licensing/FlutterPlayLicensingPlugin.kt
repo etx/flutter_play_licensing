@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import androidx.annotation.NonNull
 import com.google.android.vending.licensing.AESObfuscator
 import com.google.android.vending.licensing.LicenseChecker
@@ -15,12 +16,12 @@ import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
-import io.flutter.plugin.common.PluginRegistry.Registrar
+
 
 object PlayLicensingConfig {
   val salt: ByteArray = byteArrayOf(
-          -46, 65, 30, -128, -103, -57, 74, -64, 51, 88,
-          -95, -45, 77, -117, -36, -113, -11, 32, -64, 89
+          -46, 65, 30, -128, -101, -57, 74, -64, 51, 88,
+          -95, -45, 79, -117, -36, -113, -13, 32, -64, 89
   )
 
   // in base64, BASE64_PUBLIC_KEY
@@ -31,31 +32,18 @@ object PlayLicensingConfig {
  *
  * ref. https://developer.android.com/google/play/licensing/client-side-verification
  */
-public class FlutterPlayLicensingPlugin(private val registrar: Registrar? = null) : FlutterPlugin, MethodCallHandler {
+public class FlutterPlayLicensingPlugin : FlutterPlugin, MethodCallHandler {
+
+  private lateinit var context: Context
+  private lateinit var channel : MethodChannel
 
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
-    val channel = MethodChannel(flutterPluginBinding.binaryMessenger, "play_licensing")
-    channel.setMethodCallHandler(FlutterPlayLicensingPlugin())
+    context = flutterPluginBinding.getApplicationContext()
+    channel = MethodChannel(flutterPluginBinding.binaryMessenger, "play_licensing")
+      channel.setMethodCallHandler(this)
   }
 
-  // This static function is optional and equivalent to onAttachedToEngine. It supports the old
-  // pre-Flutter-1.12 Android projects. You are encouraged to continue supporting
-  // plugin registration via this function while apps migrate to use the new Android APIs
-  // post-flutter-1.12 via https://flutter.dev/go/android-project-migration.
-  //
-  // It is encouraged to share logic between onAttachedToEngine and registerWith to keep
-  // them functionally equivalent. Only one of onAttachedToEngine or registerWith will be called
-  // depending on the user's project. onAttachedToEngine or registerWith must both be defined
-  // in the same class.
-  companion object {
-    @JvmStatic
-    fun registerWith(registrar: Registrar) {
-      val channel = MethodChannel(registrar.messenger(), "play_licensing")
-      channel.setMethodCallHandler(FlutterPlayLicensingPlugin(registrar))
-    }
-  }
-
-  override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
+  override fun onMethodCall(call: MethodCall, result: Result) {
     when (call.method) {
       "check" -> {
         check(call, result)
@@ -86,7 +74,7 @@ public class FlutterPlayLicensingPlugin(private val registrar: Registrar? = null
   }
 
   private fun isAllowed(@NonNull call: MethodCall, @NonNull result: Result) {
-    registrar?.context()?.let { context ->
+
       val checker = context.checker(
               call.argument<String>("salt")?.toHexByteArray,
               call.argument<String>("publicKey"))
@@ -130,11 +118,10 @@ public class FlutterPlayLicensingPlugin(private val registrar: Registrar? = null
                 }
               }
       )
-    } ?: result.notImplemented()
   }
 
   private fun check(@NonNull call: MethodCall, @NonNull result: Result) {
-      registrar?.context()?.let { context ->
+
         val checker = context.checker(
                 call.argument<String>("salt")?.toHexByteArray,
                 call.argument<String>("publicKey"))
@@ -149,11 +136,11 @@ public class FlutterPlayLicensingPlugin(private val registrar: Registrar? = null
                   result.onMain().errors(errorCode.toString(), details = errorCode)
                 }
         )
-      } ?: result.notImplemented()
   }
 
-  override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
-  }
+    override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+        channel.setMethodCallHandler(null)
+    }
 }
 
 fun LicenseChecker.checkAccess(onAllow: (Int) -> Unit = { _ -> },
